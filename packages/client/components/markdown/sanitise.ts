@@ -36,6 +36,11 @@ const RE_CODEBLOCK_EMPTY_LINE_FIX =
  * @returns Sanitised string
  */
 export function sanitise(content: string) {
+  // Return empty string immediately if input is empty
+  if (!content || content.trim() === "") {
+    return "";
+  }
+
   return (
     content
       // Strip excessive blockquote or list indentation
@@ -54,7 +59,7 @@ export function sanitise(content: string) {
       // Replace empty lines with non-breaking space
       // because remark renderer is collapsing empty
       // or otherwise whitespace-only lines of text
-      .replace(RE_EMPTY_LINE, "\n\uF800\n")
+      .replace(RE_EMPTY_LINE, "\uF800")
 
       // Reverts previous empty line operation specifically for codeblocks.
       // Hacky solution, I know, but so far I haven't found a more elegant
@@ -62,7 +67,19 @@ export function sanitise(content: string) {
       .replace(RE_CODEBLOCK_EMPTY_LINE_FIX, "")
 
       // Ensure empty line after blockquotes for correct rendering
-      .replace(RE_BLOCKQUOTE, (match) => `${match}\n`)
+      // Only add newline if not already present
+      .replace(RE_BLOCKQUOTE, (match) => {
+        // Check if already ends with double newline
+        if (match.endsWith("\n\n")) {
+          return match;
+        }
+        // Add single newline if ends with single newline
+        if (match.endsWith("\n")) {
+          return `${match}\n`;
+        }
+        // Add double newline if no newline at end
+        return `${match}\n\n`;
+      })
   );
 }
 

@@ -16,12 +16,24 @@ export const RE_ANY_EMOJI = new RegExp(
 );
 
 /**
+ * Unicode code points for zero-width characters that should not be rendered alone
+ * These characters are used as modifiers/joiners but aren't valid emojis by themselves
+ */
+const ZERO_WIDTH_CHAR_MIN = 0x200b; // Zero-width space
+const ZERO_WIDTH_CHAR_MAX = 0x200f; // Zero-width joiner and similar
+
+/**
  * Check if a piece of text is only comprised of emoji
  * @param text Text
  * @returns Whether it is only emoji
  */
 export function isOnlyEmoji(text: string) {
-  return text.replaceAll(RE_ANY_EMOJI, "").trim().length === 0;
+  const trimmed = text.trim();
+  // String vazia ou apenas espaços não é emoji
+  if (trimmed.length === 0) {
+    return false;
+  }
+  return trimmed.replaceAll(RE_ANY_EMOJI, "").length === 0;
 }
 
 /**
@@ -68,7 +80,13 @@ export function injectEmojiSize(
  */
 export function toCodepoint(input: string) {
   if (input.length === 1) {
-    return input.charCodeAt(0).toString(16);
+    const code = input.charCodeAt(0);
+    // Filter out zero-width control characters that aren't valid standalone emojis
+    // These cause broken URLs when used alone (e.g., ZWJ without surrounding emoji)
+    if (code >= ZERO_WIDTH_CHAR_MIN && code <= ZERO_WIDTH_CHAR_MAX) {
+      return "";
+    }
+    return code.toString(16);
   } else if (input.length > 1) {
     const pairs = [];
     for (let i = 0; i < input.length; i++) {
@@ -92,6 +110,11 @@ export function toCodepoint(input: string) {
         // modifiers and joiners
         pairs.push(input.charCodeAt(i));
       }
+    }
+
+    // If no valid pairs were found, return empty string to prevent broken URLs
+    if (pairs.length === 0) {
+      return "";
     }
 
     return pairs.map((char) => char.toString(16)).join("-");
